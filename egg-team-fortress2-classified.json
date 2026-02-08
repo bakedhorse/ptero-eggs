@@ -1,0 +1,84 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2026-02-08T07:18:31+00:00",
+    "name": "Team Fortress 2 Classified",
+    "author": "support@pterodactyl.io",
+    "description": "Team Fortress 2 Classified is a community server project that runs as a Source dedicated server and requires the live Team Fortress 2 dedicated server files. This egg installs both dependencies via SteamCMD and starts Classified with a -tf_path pointing at the TF2 install.",
+    "features": [
+        "steam_disk_space"
+    ],
+    "docker_images": {
+        "ghcr.io\/parkervcp\/steamcmd:ubuntu": "ghcr.io\/parkervcp\/steamcmd:ubuntu"
+    },
+    "file_denylist": [],
+    "startup": ".\/srcds.sh -port {{SERVER_PORT}} -tf_path .\/ +map {{SRCDS_MAP}} +maxplayers {{MAXPLAYERS}} +sv_setsteamaccount {{STEAM_ACC}}",
+    "config": {
+        "files": "{}",
+        "startup": "{\r\n    \"done\": \"gameserver Steam ID\"\r\n}",
+        "logs": "{}",
+        "stop": "quit"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!\/bin\/bash\r\n# steamcmd Base Installation Script\r\n#\r\n# Server Files: \/mnt\/server\r\n\r\nset -e\r\n\r\n##\r\n# Variables\r\n# STEAM_USER, STEAM_PASS, STEAM_AUTH - Steam user setup.\r\n# WINDOWS_INSTALL - if it's a windows server you want to install set to 1\r\n# TF2_APPID - Live TF2 dedicated server appid\r\n# SRCDS_APPID - Classified dedicated server appid\r\n##\r\n\r\n## just in case someone removed the defaults.\r\nif [ \"${STEAM_USER}\" == \"\" ]; then\r\n    echo -e \"steam user is not set.\\n\"\r\n    echo -e \"Using anonymous user.\\n\"\r\n    STEAM_USER=anonymous\r\n    STEAM_PASS=\"\"\r\n    STEAM_AUTH=\"\"\r\nelse\r\n    echo -e \"user set to ${STEAM_USER}\"\r\nfi\r\n\r\n## download and install steamcmd\r\ncd \/tmp\r\nmkdir -p \/mnt\/server\/steamcmd\r\ncurl -sSL -o steamcmd.tar.gz https:\/\/steamcdn-a.akamaihd.net\/client\/installer\/steamcmd_linux.tar.gz\r\ntar -xzvf steamcmd.tar.gz -C \/mnt\/server\/steamcmd\r\nmkdir -p \/mnt\/server\/steamapps # Fix steamcmd disk write error when this folder is missing\r\ncd \/mnt\/server\/steamcmd\r\n\r\n# SteamCMD fails otherwise for some reason, even running as root.\r\n# This is changed at the end of the install process anyways.\r\nchown -R root:root \/mnt\r\nexport HOME=\/mnt\/server\r\n\r\n# Install both TF2 and Classified into the same server directory to avoid keeping\r\n# two full installs that duplicate shared game files.\r\nINSTALL_DIR=\/mnt\/server\r\n\r\n## install live TF2 dedicated server (required dependency)\r\n.\/steamcmd.sh +force_install_dir ${INSTALL_DIR} +login ${STEAM_USER} ${STEAM_PASS} ${STEAM_AUTH} $( [[ \"${WINDOWS_INSTALL}\" == \"1\" ]] && printf %s '+@sSteamCmdForcePlatformType windows' ) +app_update ${TF2_APPID} validate +quit\r\n\r\n## install Classified dedicated server (overlay)\r\n.\/steamcmd.sh +force_install_dir ${INSTALL_DIR} +login ${STEAM_USER} ${STEAM_PASS} ${STEAM_AUTH} $( [[ \"${WINDOWS_INSTALL}\" == \"1\" ]] && printf %s '+@sSteamCmdForcePlatformType windows' ) +app_update ${SRCDS_APPID} validate +quit\r\n\r\n## set up steamclient libraries\r\nmkdir -p \/mnt\/server\/.steam\/sdk32\r\ncp -v linux32\/steamclient.so ..\/.steam\/sdk32\/steamclient.so\r\n\r\nmkdir -p \/mnt\/server\/.steam\/sdk64\r\ncp -v linux64\/steamclient.so ..\/.steam\/sdk64\/steamclient.so\r\n\r\n\r\necho \"-----------------------------------------\"\r\necho \"Installation completed...\"\r\necho \"-----------------------------------------\"",
+            "container": "ghcr.io\/pterodactyl\/installers:debian",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "TF2 (Live) App ID",
+            "description": "The live TF2 dedicated server AppID required by Classified.",
+            "env_variable": "TF2_APPID",
+            "default_value": "232250",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "required|in:232250",
+            "field_type": "text"
+        },
+        {
+            "name": "Classified App ID",
+            "description": "The Steam AppID for Team Fortress 2 Classified dedicated server.",
+            "env_variable": "SRCDS_APPID",
+            "default_value": "3557020",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "required|in:3557020",
+            "field_type": "text"
+        },
+        {
+            "name": "Default Map",
+            "description": "The default map to use when starting the server.",
+            "env_variable": "SRCDS_MAP",
+            "default_value": "ctf_2fort",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|regex:\/^(\\w{1,20})$\/",
+            "field_type": "text"
+        },
+        {
+            "name": "Max Players",
+            "description": "The maximum amount of players allowed on the server.",
+            "env_variable": "MAXPLAYERS",
+            "default_value": "24",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|min:1|max:64",
+            "field_type": "text"
+        },
+        {
+            "name": "Steam",
+            "description": "The Steam Game Server Login Token to display servers publicly. Generate one at https:\/\/steamcommunity.com\/dev\/managegameservers",
+            "env_variable": "STEAM_ACC",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:64",
+            "field_type": "text"
+        }
+    ]
+}
